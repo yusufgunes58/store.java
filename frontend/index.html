@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SUN STYLE</title>
+
+    <!-- Bootstrap -->
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+
+    <style>
+      body {
+        background-color: #f4f4f4;
+      }
+
+      .banner {
+        background-color: #343a40;
+        color: white;
+        padding: 25px;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .banner h1 {
+        font-size: 28px;
+        margin-bottom: 5px;
+      }
+
+      .banner p {
+        font-size: 14px;
+        margin: 0;
+        color: #ccc;
+      }
+
+      .dashboard-card {
+        cursor: pointer;
+        transition: 0.3s;
+      }
+
+      .dashboard-card:hover {
+        transform: scale(1.03);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+    </style>
+  </head>
+
+  <body>
+    <!--  LOGIN  -->
+    <script>
+      if (!localStorage.getItem("userId")) {
+        window.location.href = "login.html";
+      }
+    </script>
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <span class="navbar-brand"> Welcome, <span id="username"></span> </span>
+
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="category.html">Categories</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="product.html">Products</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="customer.html">Customers</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="order.html">Order</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-danger" href="login.html" onclick="logout()"
+              >Logout</a
+            >
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- BANNER -->
+    <div class="banner">
+      <h1>oOoOo My Store oOoOo</h1>
+    </div>
+
+    <!-- MAIN -->
+    <div class="container">
+      <!-- DASHBOARD CARDS -->
+      <div class="row text-center">
+        <div class="col-md-4 mb-3">
+          <div class="card dashboard-card" onclick="goCategory()">
+            <div class="card-body">
+              <h5 class="card-title">Categories</h5>
+              <p class="card-text">Manage categories</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <div class="card dashboard-card" onclick="goProduct()">
+            <div class="card-body">
+              <h5 class="card-title">Products</h5>
+              <p class="card-text">Manage products</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <div class="card dashboard-card" onclick="goOrder()">
+            <div class="card-body">
+              <h5 class="card-title">Orders</h5>
+              <p class="card-text">View orders</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <div class="card dashboard-card" onclick="goCustomer()">
+            <div class="card-body">
+              <h5 class="card-title">Customer</h5>
+              <p class="card-text">View Customer</p>
+            </div>
+          </div>
+
+
+        </div>
+
+
+      </div>
+
+      <hr />
+
+   
+
+    <script>
+      //welcome, username
+      document.addEventListener("DOMContentLoaded", function () {
+        const userName = localStorage.getItem("userName");
+
+        const usernameSpan = document.getElementById("username");
+        if (usernameSpan) {
+          usernameSpan.innerText = userName ? userName : "User";
+        }
+      });
+
+      // navigation
+      function goCategory() {
+        window.location.href = "category.html";
+      }
+
+      function goProduct() {
+        window.location.href = "product.html";
+      }
+
+      function goOrder() {
+        window.location.href = "order.html";
+      }
+
+      function goCustomer() {
+        window.location.href = "customer.html";
+      }
+
+      function logout() {
+        localStorage.clear();
+        window.location.href = "login.html";
+      }
+
+       
+    </script>
+  </body>
+</html>

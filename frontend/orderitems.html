@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Order Details</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      body {
+        background-color: #f4f7f6;
+      }
+      .page-header {
+        margin: 30px 0;
+        background: #fff;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      }
+      .info-label {
+        font-weight: bold;
+        color: #555;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <span class="navbar-brand mb-0 h1">Order Management</span>
+      <div class="ml-auto">
+        <a href="order.html" class="btn btn-outline-light btn-sm">
+          &larr; Back to Orders
+        </a>
+      </div>
+    </nav>
+
+    <div class="container">
+      
+      <!-- HEADER: info order -->
+      <div class="page-header">
+        <div class="row w-100">
+            <div class="col-md-4">
+                <h4>Order #<span id="orderIdDisplay"></span></h4>
+            </div>
+            <div class="col-md-4">
+                <span class="info-label">Customer:</span> 
+                <span id="customerNameDisplay" class="text-primary">Loading...</span>
+            </div>
+            <div class="col-md-4">
+                <span class="info-label">Created By:</span> 
+                <span id="userNameDisplay" class="text-info">Loading...</span>
+            </div>
+        </div>
+      </div>
+
+      <!-- ADD / UPDATE ITEM FORM -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-secondary text-white">
+          Add / Update Product
+        </div>
+        <div class="card-body">
+          <div class="form-row align-items-end">
+            <div class="col-md-6">
+              <label>Select Product</label>
+              <select id="productSelect" class="form-control">
+                <option value="" disabled selected>Loading products...</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Quantity</label>
+              <input
+                type="number"
+                id="quantityInput"
+                class="form-control"
+                value="1"
+                min="1"
+              />
+            </div>
+            <div class="col-md-3">
+              <button class="btn btn-success btn-block" onclick="addOrUpdateItem()">
+                Add to Order
+              </button>
+            </div>
+          </div>
+          <small id="msg" class="d-block mt-2 font-weight-bold"></small>
+        </div>
+      </div>
+
+      <!-- ITEMS LIST -->
+      <div class="card shadow-sm">
+        <div class="card-header">
+          Order Items
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-striped mb-0">
+            <thead class="thead-light">
+              <tr>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total Line Price</th>
+                <th style="width: 150px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="itemsTable">
+              <!-- add witj using js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script>
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentOrderId = urlParams.get("id");
+      const BASE_URL = "http://localhost:8080";
+
+      if (!currentOrderId) {
+        alert("No Order ID found!");
+        window.location.href = "order.html";
+      }
+
+      document.getElementById("orderIdDisplay").innerText = currentOrderId;
+
+      /* ---------------- LOAD ORDER INFO (Customer & User) ---------------- */
+      function loadOrderDetails() {
+        // fetch endpoint
+        fetch(`${BASE_URL}/order/${currentOrderId}`)
+            .then(res => {
+                if(!res.ok) throw new Error("Order not found");
+                return res.json();
+            })
+            .then(data => {
+                // custoemr name
+                const cName = data.customer ? (data.customer.fullName || data.customer.firstName) : "Unknown Customer";
+                document.getElementById("customerNameDisplay").innerText = cName;
+
+                // user name
+                const uName = data.user ? (data.user.fullName || data.user.username) : "Unknown User";
+                document.getElementById("userNameDisplay").innerText = uName;
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById("customerNameDisplay").innerText = "Error";
+                document.getElementById("userNameDisplay").innerText = "Error";
+            });
+      }
+
+      /* ---------------- LOAD PRODUCTS ---------------- */
+      function loadProducts() {
+        fetch(`${BASE_URL}/product`)
+          .then((res) => res.json())
+          .then((data) => {
+            const select = document.getElementById("productSelect");
+            select.innerHTML = `<option value="" disabled selected>Select a Product</option>`;
+            data.forEach((p) => {
+              select.innerHTML += `
+                <option value="${p.id}">
+                    ${p.name} (Stock: ${p.stock} | Price: ${p.price})
+                </option>`;
+            });
+          });
+      }
+
+      /* ---------------- LOAD ITEMS ---------------- */
+      function loadOrderItems() {
+        fetch(`${BASE_URL}/orderitems/${currentOrderId}`)
+          .then((res) => res.json())
+          .then((data) => {
+            const table = document.getElementById("itemsTable");
+            table.innerHTML = "";
+
+            if (data.length === 0) {
+              table.innerHTML = `<tr><td colspan="5" class="text-center">No items found.</td></tr>`;
+              return;
+            }
+
+            data.forEach((item) => {
+
+              const unitPrice = (item.price / item.quantity).toFixed(2); 
+              
+              table.innerHTML += `
+                <tr>
+                    <td>${item.product.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${unitPrice}</td>
+                    <td>${item.price}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" 
+                            onclick="deleteItem(${item.product.id})">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+              `;
+            });
+          });
+      }
+
+      /* ---------------- ADD / UPDATE ---------------- */
+      function addOrUpdateItem() {
+        const prodId = document.getElementById("productSelect").value;
+        const qty = document.getElementById("quantityInput").value;
+        const msg = document.getElementById("msg");
+
+        if (!prodId || qty <= 0) {
+            msg.innerText = "Invalid product or quantity";
+            msg.style.color = "red";
+            return;
+        }
+
+        const url = `${BASE_URL}/orderitems/update/${currentOrderId}/${prodId}/${qty}`;
+
+        fetch(url, { method: "POST" })
+        .then(res => res.text())
+        .then(responseMsg => {
+            if (responseMsg.includes("Not enough")) {
+                msg.style.color = "red";
+            } else {
+                msg.style.color = "green";
+                loadOrderItems();
+                loadProducts(); 
+            }
+            msg.innerText = responseMsg;
+        });
+      }
+
+      /* ---------------- DELETE ---------------- */
+      function deleteItem(productId) {
+        if (!confirm("Remove this item?")) return;
+
+        fetch(`${BASE_URL}/orderitems/delete/${currentOrderId}/${productId}`, {
+            method: "DELETE"
+        })
+        .then(res => res.text())
+        .then(() => {
+            loadOrderItems();
+            loadProducts();
+        });
+      }
+
+      /* INIT */
+      loadOrderDetails(); 
+      loadProducts();     
+      loadOrderItems();   
+
+    </script>
+  </body>
+</html>

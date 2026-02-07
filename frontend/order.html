@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Order Management</title>
+    <!-- Bootstrap CSS -->
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .page-title {
+        margin: 30px 0;
+        border-bottom: 2px solid #343a40;
+        padding-bottom: 10px;
+      }
+      .pointer {
+        cursor: pointer;
+      }
+      .form-inline .form-control {
+        max-width: 250px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- LOGIN CHECK -->
+    <script>
+      // Kullanıcı giriş yapmamışsa login sayfasına at
+      if (!localStorage.getItem("userId")) {
+        window.location.href = "login.html";
+      }
+    </script>
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <span class="navbar-brand"> Welcome, <span id="username"></span> </span>
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-toggle="collapse"
+        data-target="#navbarNav"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="category.html">Categories</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="product.html">Products</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="customer.html">Customers</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="order.html">Orders</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-danger pointer" onclick="logout()"
+              >Logout</a
+            >
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container">
+      <h3 class="page-title">Order Management</h3>
+
+      <!-- CREATE ORDER SECTION -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">Create New Order</div>
+        <div class="card-body">
+          <div class="form-row align-items-center">
+            <!-- Customer Search Input -->
+            <div class="col-auto">
+              <input
+                id="customerSearch"
+                class="form-control mb-2"
+                placeholder="Search Customer Name..."
+              />
+            </div>
+            <!-- Search Button -->
+            <div class="col-auto">
+              <button
+                class="btn btn-secondary mb-2"
+                onclick="searchCustomer()"
+              >
+                Search
+              </button>
+            </div>
+            <!-- Customer Dropdown -->
+            <div class="col-auto">
+              <select id="customerSelect" class="form-control mb-2" style="min-width: 200px;">
+                <option value="" disabled selected>Select a customer</option>
+              </select>
+            </div>
+            <!-- Create Button -->
+            <div class="col-auto">
+              <button class="btn btn-success mb-2" onclick="createOrder()">
+                Create Order
+              </button>
+            </div>
+          </div>
+          <small id="orderMsg" class="d-block mt-2 font-weight-bold"></small>
+        </div>
+      </div>
+
+      <!-- ORDER LIST SECTION -->
+      <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white">Order List</div>
+        <div class="card-body p-0">
+          <table class="table table-hover table-striped mb-0">
+            <thead class="thead-light">
+              <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>User</th>
+                <th style="width: 150px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="orderTable">
+             
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script>
+      /* ---------------- GLOBAL VARIABLES ---------------- */
+      const BASE_URL = "http://localhost:8080";
+      const userId = localStorage.getItem("userId");
+      const userName = localStorage.getItem("userName");
+
+      document.getElementById("username").innerText = userName || "User";
+
+      /* ---------------- AUTH ---------------- */
+      function logout() {
+        localStorage.clear();
+        window.location.href = "login.html";
+      }
+
+      /* ---------------- LOAD ORDERS ---------------- */
+      function loadOrders() {
+        fetch(`${BASE_URL}/order`)
+          .then((res) => {
+             if(!res.ok) throw new Error("Could not load orders");
+             return res.json();
+          })
+          .then((data) => {
+            const tableBody = document.getElementById("orderTable");
+            tableBody.innerHTML = "";
+
+            if (data.length === 0) {
+              tableBody.innerHTML = `<tr><td colspan="5" class="text-center">No orders found.</td></tr>`;
+              return;
+            }
+
+            data.forEach((o) => {
+              
+              const dateStr = o.orderDate ? new Date(o.orderDate).toLocaleDateString() : "-";
+              const customerName = o.customer ? o.customer.fullName : "Unknown"; 
+              const userName = o.user ? (o.user.fullName || o.user.username) : "-";
+
+              tableBody.innerHTML += `
+                <tr>
+                    <td>${o.id}</td>
+                    <td>${dateStr}</td>
+                    <td>${customerName}</td>
+                    <td>${userName}</td>
+                    <td>
+                        <a href="orderitems.html?id=${o.id}" class="btn btn-sm btn-info mr-1">View</a>
+                        <button class="btn btn-sm btn-danger" onclick="deleteOrder(${o.id})">Delete</button>
+                    </td>
+                </tr>
+              `;
+            });
+          })
+          .catch((err) => {
+            console.error(err);
+            document.getElementById("orderTable").innerHTML = `<tr><td colspan="5" class="text-danger text-center">Connection Error! Ensure backend is running.</td></tr>`;
+          });
+      }
+
+      /* ---------------- SEARCH CUSTOMER ---------------- */
+      function searchCustomer() {
+    const key = document.getElementById("customerSearch").value.trim();
+    const selectBox = document.getElementById("customerSelect");
+
+    if (!key) {
+        alert("Please enter the name to be searched.");
+        return;
+    }
+
+    // Backend request
+    fetch(`http://localhost:8080/customer/search?fullName=${key}`)
+        .then(res => {
+            if (!res.ok) throw new Error("The search request failed.");
+            return res.json();
+        })
+        .then(data => {
+            selectBox.innerHTML = ""; 
+            
+            if (data.length === 0) {
+                
+                selectBox.innerHTML = `<option value="">No Data </option>`;
+                return;
+            }
+
+            data.forEach(c => {
+              
+                const displayName = c.fullName || c.firstName || c.name || "NoName";
+                selectBox.innerHTML += `<option value="${c.id}">${displayName} (ID: ${c.id})</option>`;
+            });
+            
+           
+            selectBox.selectedIndex = 0;
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Search Error");
+        });
+}
+
+      /* ---------------- CREATE ORDER ---------------- */
+      function createOrder() {
+        const selectBox = document.getElementById("customerSelect");
+        const msg = document.getElementById("orderMsg");
+
+        if (!selectBox.value) {
+          msg.innerText = "Please search and select a customer first.";
+          msg.style.color = "red";
+          return;
+        }
+
+        const uId = localStorage.getItem("userId");
+    console.log("LocalStorage User ID:", uId); // exception 
+
+console.log("Gönderilecek User ID:", uId); 
+    console.log("Gönderilecek Customer ID:", selectBox.value);
+
+    if (!uId) {
+        alert("Hata: Giriş yapmış kullanıcı bulunamadı! Lütfen Logout yapıp tekrar girin.");
+        return;
+    }
+
+    const newOrder = {
+        orderDate: new Date(),
+        customer: { id: parseInt(selectBox.value) },
+        user: { id: parseInt(uId) } 
+    };
+
+        console.log("Sending Order:", newOrder);
+
+        fetch(`${BASE_URL}/order/new`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newOrder),
+        })
+          .then(async (res) => {
+            if (!res.ok) {
+                // error mess from back
+                const errorText = await res.text();
+                throw new Error(errorText || "Creation failed with status " + res.status);
+            }
+            return res.text();
+          })
+          .then((responseMsg) => {
+            msg.innerText = "Order created successfully!";
+            msg.style.color = "green";
+            loadOrders(); // Tablo refresh
+            
+            // Formu temizle
+            document.getElementById("customerSearch").value = "";
+            selectBox.innerHTML = `<option value="" disabled selected>Select a customer</option>`;
+          })
+          .catch((err) => {
+            console.error(err);
+            msg.innerText = "Failed: " + err.message;
+            msg.style.color = "red";
+          });
+      }
+
+      /* ---------------- DELETE ORDER ---------------- */
+      function deleteOrder(id) {
+        if (!confirm(`Are you sure you want to delete Order #${id}?`)) return;
+
+        fetch(`${BASE_URL}/order/delete/${id}`, {
+          method: "DELETE",
+        })
+        .then(res => {
+            if(res.ok) {
+                loadOrders();
+            } else {
+                alert("Could not delete order.");
+            }
+        })
+        .catch(err => console.error(err));
+      }
+
+      /* INITIALIZE PAGE */
+      loadOrders();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Product Page </title>
+
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+
+    <style>
+      body {
+        background-color: #f4f4f4;
+      }
+      .page-title {
+        margin: 30px 0;
+      }
+      input,
+      select {
+        max-width: 180px;
+      }
+      .pointer {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- LOGIN CHECK -->
+    <script>
+      if (!localStorage.getItem("userId")) {
+        window.location.href = "login.html";
+      }
+    </script>
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <span class="navbar-brand"> Welcome, <span id="username"></span> </span>
+
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="index.html">Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="category.html">Categories</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" href="product.html">Products</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="customer.html">Customer</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="order.html">Order</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-danger pointer" onclick="logout()">Logout</a>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="container">
+      <h3 class="page-title">Product Management</h3>
+
+      <!-- ADD / UPDATE -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 id="formTitle">Add Product</h5>
+
+          <div class="form-inline">
+            <input id="pName" class="form-control mr-2" placeholder="Name" />
+            <input
+              id="pPrice"
+              type="number"
+              class="form-control mr-2"
+              placeholder="Price"
+            />
+            <input
+              id="pStock"
+              type="number"
+              class="form-control mr-2"
+              placeholder="Stock"
+            />
+            <select id="pCategory" class="form-control mr-2"></select>
+
+            <button
+              class="btn btn-primary"
+              onclick="saveProduct()"
+              id="saveBtn"
+            >
+              Add
+            </button>
+
+            <button
+              class="btn btn-secondary ml-2 d-none"
+              onclick="cancelEdit()"
+              id="cancelBtn"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <small id="msg" class="form-text mt-2"></small>
+        </div>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="mb-3 form-inline">
+        <label class="mr-2">Filter by Category:</label>
+        <select id="searchCategory" class="form-control mr-2"></select>
+        <button class="btn btn-info" onclick="searchByCategory()">
+          Search
+        </button>
+      </div>
+
+      <!-- TABLE -->
+      <div class="card">
+        <div class="card-body">
+          <table class="table table-bordered">
+            <thead class="thead-light">
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Category</th>
+                <th style="width: 140px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="productTable"></tbody>
+          </table>
+
+          <!-- PAGINATION -->
+          <nav>
+            <ul class="pagination justify-content-center" id="pagination"></ul>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /* ------------------ GLOBAL ------------------ */
+      document.getElementById("username").innerText =
+        localStorage.getItem("userName") || "User";
+
+      let editProductId = null;
+      let allProducts = [];
+      let currentPage = 1;
+      const pageSize = 10;
+
+      /* ------------------ AUTH ------------------ */
+      function logout() {
+        localStorage.clear();
+        window.location.href = "login.html";
+      }
+
+      /* ------------------ LOAD DATA ------------------ */
+      function loadCategories() {
+        fetch("http://localhost:8080/category")
+          .then((res) => res.json())
+          .then((data) => {
+            pCategory.innerHTML = "";
+            searchCategory.innerHTML = `<option value="">All</option>`;
+
+            data.forEach((c) => {
+              pCategory.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+              searchCategory.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+            });
+          });
+      }
+
+      function loadProducts() {
+        fetch("http://localhost:8080/product")
+          .then((res) => res.json())
+          .then((data) => {
+            allProducts = data;
+            currentPage = 1;
+            renderPage();
+          });
+      }
+
+      /* ------------------ RENDER ------------------ */
+      function renderPage() {
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        renderTable(allProducts.slice(start, end));
+        renderPagination();
+      }
+
+      function renderTable(data) {
+        productTable.innerHTML = "";
+
+        data.forEach((p) => {
+          // 1. if category:name else -
+          const categoryName = p.category ? p.category.name : "-";
+
+          // 2. for id
+          const categoryId = p.category ? p.category.id : "null";
+
+          // fix product name char
+          const safeName = p.name.replace(/'/g, "\\'");
+
+          productTable.innerHTML += `
+      <tr>
+          <td>${p.id}</td>
+          <td>${p.name}</td>
+          <td>${p.price}</td>
+          <td>${p.stock}</td>
+          
+          <td>${categoryName}</td>
+          
+          <td>
+              <button class="btn btn-sm btn-warning mr-1"
+                  onclick="editProduct(${p.id}, '${safeName}', ${p.price}, ${p.stock}, ${categoryId})">
+                  Edit
+              </button>
+              <button class="btn btn-sm btn-danger"
+                  onclick="deleteProduct(${p.id})">
+                  Delete
+              </button>
+          </td>
+      </tr>`;
+        });
+      }
+
+      function renderPagination() {
+        pagination.innerHTML = "";
+        const pageCount = Math.ceil(allProducts.length / pageSize);
+
+        for (let i = 1; i <= pageCount; i++) {
+          pagination.innerHTML += `
+        <li class="page-item ${i === currentPage ? "active" : ""}">
+            <a class="page-link" onclick="goPage(${i})">${i}</a>
+        </li>`;
+        }
+      }
+
+      function goPage(page) {
+        currentPage = page;
+        renderPage();
+      }
+
+      /* ------------------ SEARCH ------------------ */
+      function searchByCategory() {
+        const name = searchCategory.value;
+
+        if (name === "") {
+          loadProducts();
+          return;
+        }
+
+        fetch(`http://localhost:8080/product/category/${name}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.length === 0) {
+              alert("No product found for this category.");
+              return;
+            }
+            allProducts = data;
+            currentPage = 1;
+            renderPage();
+          });
+      }
+
+      /* ------------------ ADD / UPDATE ------------------ */
+      function saveProduct() {
+        msg.innerText = "";
+
+        if (!pName.value || !pPrice.value || !pStock.value) {
+          msg.innerText = "All fields are required.";
+          msg.style.color = "red";
+          return;
+        }
+
+        const product = {
+          id: editProductId,
+          name: pName.value.trim(),
+          price: Number(pPrice.value),
+          stock: Number(pStock.value),
+          category: { id: Number(pCategory.value) },
+        };
+
+        const url =
+          editProductId === null
+            ? "http://localhost:8080/product/new"
+            : `http://localhost:8080/product/update/${editProductId}`;
+
+        const method = "POST";
+
+        fetch(url, {
+          method: method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(product),
+        })
+          .then((res) => {
+            if (!res.ok) {
+              if (res.status === 409) {
+                throw new Error("Product name must be unique.");
+              }
+              throw new Error("Operation failed.");
+            }
+            return res.text();
+          })
+          .then(() => {
+            msg.innerText =
+              editProductId === null
+                ? "Product added successfully."
+                : "Product updated successfully.";
+            msg.style.color = "green";
+
+            if (editProductId === null) {
+              clearForm();
+            } else {
+              cancelEdit();
+            }
+
+            loadProducts();
+          })
+          .catch((err) => {
+            msg.innerText = err.message;
+            msg.style.color = "red";
+          });
+      }
+
+      function editProduct(id, name, price, stock, categoryId) {
+        editProductId = id;
+        pName.value = name;
+        pPrice.value = price;
+        pStock.value = stock;
+        pCategory.value = categoryId;
+        formTitle.innerText = "Update Product";
+        saveBtn.innerText = "Update";
+        cancelBtn.classList.remove("d-none");
+      }
+
+      function cancelEdit() {
+        editProductId = null;
+        pName.value = pPrice.value = pStock.value = "";
+        formTitle.innerText = "Add Product";
+        saveBtn.innerText = "Add";
+        cancelBtn.classList.add("d-none");
+      }
+
+      /* ------------------ DELETE ------------------ */
+      function deleteProduct(id) {
+        if (!confirm("Are you sure?")) return;
+
+        fetch(`http://localhost:8080/product/delete/${id}`, {
+          method: "DELETE",
+        }).then(() => loadProducts());
+      }
+
+      function clearForm() {
+        pName.value = "";
+        pPrice.value = "";
+        pStock.value = "";
+      }
+
+      /* ------------------ INIT ------------------ */
+      loadCategories();
+      loadProducts();
+    </script>
+  </body>
+</html>

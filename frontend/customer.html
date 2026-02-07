@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Customer Page</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      body {
+        background-color: #f4f7f6;
+      }
+      .page-title {
+        margin: 30px 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- LOGIN CHECK -->
+    <script>
+      if (!localStorage.getItem("userId")) window.location.href = "login.html";
+    </script>
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <span class="navbar-brand">Customer Management</span>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="category.html">Categories</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="product.html">Products</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="customer.html">Customers</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="order.html">Orders</a>
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link text-danger"
+              onclick="logout()"
+              style="cursor: pointer"
+              >Logout</a
+            >
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container">
+      <h3 class="page-title">Customers</h3>
+
+      <!-- ADD FORM  -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+          <h5 id="formTitle">Add New Customer</h5>
+          <div class="form-inline">
+            <!-- Full Name Input -->
+            <input
+              id="cFullName"
+              class="form-control mr-2"
+              placeholder="Full Name"
+              style="width: 250px"
+            />
+
+            <!-- Phone Input  -->
+            <input
+              id="cPhone"
+              class="form-control mr-2"
+              placeholder="Phone Number"
+              style="width: 200px"
+            />
+
+            <button class="btn btn-success" onclick="saveCustomer()">
+              Add Customer
+            </button>
+          </div>
+          <small id="msg" class="mt-2 font-weight-bold"></small>
+        </div>
+      </div>
+
+      <!-- CUSTOMER TABLE -->
+      <div class="card shadow-sm">
+        <table class="table table-striped mb-0">
+          <thead class="thead-light">
+            <tr>
+              <th>ID</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th style="width: 200px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="customerTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ORDERS MODAL Orders views  -->
+    <div class="modal fade" id="ordersModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              Order History for
+              <span id="modalCustomerName" class="text-primary"></span>
+            </h5>
+            <button type="button" class="close" data-dismiss="modal">
+              <span>&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <table class="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Date</th>
+                  <th>Created By</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="modalOrdersTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+      const BASE_URL = "http://localhost:8080";
+
+      function logout() {
+        localStorage.clear();
+        window.location.href = "login.html";
+      }
+
+      /* ---------------- LOAD CUSTOMERS ---------------- */
+      function loadCustomers() {
+        fetch(`${BASE_URL}/customer`)
+          .then((res) => res.json())
+          .then((data) => {
+            const table = document.getElementById("customerTable");
+            table.innerHTML = "";
+
+            if (data.length === 0) {
+              table.innerHTML = `<tr><td colspan="4" class="text-center">No customers found.</td></tr>`;
+              return;
+            }
+
+            data.forEach((c) => {
+              // Entity var.
+              // fix variable char..
+              const safeName = c.fullName.replace(/'/g, "\\'");
+              const phone = c.phone || "-";
+
+              table.innerHTML += `
+                <tr>
+                    <td>${c.id}</td>
+                    <td>${c.fullName}</td>
+                    <td>${phone}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info mr-1" 
+                            onclick="viewOrders(${c.id}, '${safeName}')">
+                            View Orders
+                        </button>
+                        
+                    </td>
+                </tr>`;
+            });
+          });
+      }
+
+      /* ---------------- ADD CUSTOMER (SAVE) ---------------- */
+      function saveCustomer() {
+        const nameInput = document.getElementById("cFullName");
+        const phoneInput = document.getElementById("cPhone");
+        const msg = document.getElementById("msg");
+
+        const fullName = nameInput.value.trim();
+        const phone = phoneInput.value.trim();
+
+        //ctontro empty
+        if (!fullName || !phone) {
+          msg.innerText = "Name and phone number fields are mandatory.!";
+          msg.style.color = "red";
+          return;
+        }
+
+        const customer = {
+          fullName: fullName,
+          phone: phone,
+        };
+
+        fetch(`${BASE_URL}/customer/new`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(customer),
+        })
+          .then(async (res) => {
+            // if good
+            if (res.ok) {
+              msg.innerText = "Customer added successfully.";
+              msg.style.color = "green";
+              nameInput.value = "";
+              phoneInput.value = "";
+              loadCustomers();
+              return;
+            }
+
+            try {
+              const errorData = await res.json();
+
+              const errorString = (
+                errorData.message ||
+                errorData.trace ||
+                ""
+              ).toString();
+
+              if (errorString.includes("Duplicate entry")) {
+                msg.innerText = "This customer is already registered.!";
+              } else {
+                msg.innerText = "Error Register! ";
+              }
+            } catch (e) {
+              msg.innerText = "An unexpected error occurred..";
+            }
+
+            msg.style.color = "red";
+          })
+          .catch((err) => {
+            // 4.error connect
+            console.error(err);
+            msg.innerText = "Could not connect to the server.!";
+            msg.style.color = "red";
+          });
+      }
+
+      /* ---------------- VIEW ORDERS (MODAL) ---------------- */
+      function viewOrders(customerId, customerName) {
+        document.getElementById("modalCustomerName").innerText = customerName;
+        const modalTable = document.getElementById("modalOrdersTable");
+        modalTable.innerHTML = `<tr><td colspan="4" class="text-center">Loading...</td></tr>`;
+
+        $("#ordersModal").modal("show");
+
+        fetch(`${BASE_URL}/order/customer/${customerId}`)
+          .then((res) => res.json())
+          .then((data) => {
+            modalTable.innerHTML = "";
+
+            if (data.length === 0) {
+              modalTable.innerHTML = `<tr><td colspan="4" class="text-center">No orders found for this customer.</td></tr>`;
+              return;
+            }
+
+            data.forEach((o) => {
+              const dateStr = o.orderDate
+                ? new Date(o.orderDate).toLocaleDateString()
+                : "-";
+              const userName = o.user ? o.user.fullName || "User" : "-";
+
+              modalTable.innerHTML += `
+                        <tr>
+                            <td>${o.id}</td>
+                            <td>${dateStr}</td>
+                            <td>${userName}</td>
+                            <td>
+                                <a href="orderitems.html?id=${o.id}" class="btn btn-sm btn-primary">
+                                    Go to Details
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+            });
+          });
+      }
+
+      /* INIT */
+      loadCustomers();
+    </script>
+  </body>
+</html>
